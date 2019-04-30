@@ -3,6 +3,15 @@ package gobenchtraces
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 	newrelic "github.com/newrelic/go-agent"
@@ -12,14 +21,6 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-	"io"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"net/http/httptest"
-	"sync"
-	"testing"
-	"time"
 )
 
 type service interface {
@@ -80,9 +81,8 @@ type ddTrial struct {
 }
 
 func (m *ddTrial) Setup() error {
-	log.SetOutput(ioutil.Discard)	// Yes, the DD logger does this :(
+	log.SetOutput(ioutil.Discard) // Yes, the DD logger does this :(
 	tracer.Start(tracer.WithServiceName("test"))
-	tracer.WithPrioritySampling()
 	return nil
 }
 
@@ -102,7 +102,7 @@ func (m *ddTrial) Stop() error {
 
 type jaegerTrial struct {
 	onClose io.Closer
-	tracer opentracing.Tracer
+	tracer  opentracing.Tracer
 }
 
 func (m *jaegerTrial) Setup() error {
@@ -167,12 +167,12 @@ func emptyTestFunc() {
 }
 
 type runBag struct {
-	nrApp newrelic.Application
+	nrApp        newrelic.Application
 	jaegerTracer opentracing.Tracer
 }
 
 type goroutineBag struct {
-	rw *httptest.ResponseRecorder
+	rw  *httptest.ResponseRecorder
 	req *http.Request
 }
 
@@ -189,10 +189,10 @@ type benchmarkTracesRun struct {
 	name string
 
 	atOnce int
-	trace func(b *testing.B, run benchmarkTracesRun)
+	trace  func(b *testing.B, run benchmarkTracesRun)
 	toCall func()
 
-	runBag runBag
+	runBag       runBag
 	goroutineBag goroutineBag
 }
 
@@ -225,7 +225,7 @@ func BenchmarkTraces(b *testing.B) {
 	b.ReportAllocs()
 	nrT := nrTrial{}
 	jt := &jaegerTrial{}
-	ms := multiService {
+	ms := multiService{
 		services: []service{
 			&ddTrial{}, jt, &nrT, &xrayTrial{},
 		},
@@ -237,51 +237,51 @@ func BenchmarkTraces(b *testing.B) {
 	const upper = 1000
 	runs := []benchmarkTracesRun{
 		{
-			name: "x-ray",
+			name:   "x-ray",
 			atOnce: 1,
-			trace: xrayRun,
+			trace:  xrayRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "x-ray",
+			name:   "x-ray",
 			atOnce: upper,
-			trace: xrayRun,
+			trace:  xrayRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "datadog",
+			name:   "datadog",
 			atOnce: 1,
-			trace: ddRun,
+			trace:  ddRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "datadog",
+			name:   "datadog",
 			atOnce: upper,
-			trace: ddRun,
+			trace:  ddRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "openjaeger",
+			name:   "openjaeger",
 			atOnce: 1,
-			trace: openjaegerRun,
+			trace:  openjaegerRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "openjaeger",
+			name:   "openjaeger",
 			atOnce: upper,
-			trace: openjaegerRun,
+			trace:  openjaegerRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "newrelic",
+			name:   "newrelic",
 			atOnce: 1,
-			trace: newRelicRun,
+			trace:  newRelicRun,
 			toCall: emptyTestFunc,
 		},
 		{
-			name: "newrelic",
+			name:   "newrelic",
 			atOnce: upper,
-			trace: newRelicRun,
+			trace:  newRelicRun,
 			toCall: emptyTestFunc,
 		},
 	}
@@ -291,13 +291,13 @@ func BenchmarkTraces(b *testing.B) {
 			run.runBag.nrApp = nrT.app
 			run.runBag.jaegerTracer = jt.tracer
 			wg := sync.WaitGroup{}
-			for ao := 0;ao<run.atOnce;ao++ {
+			for ao := 0; ao < run.atOnce; ao++ {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					run2 := run
 					run2.goroutineBag.setup()
-					for i:=0;i<b.N / run2.atOnce;i++ {
+					for i := 0; i < b.N/run2.atOnce; i++ {
 						run2.trace(b, run2)
 					}
 				}()
