@@ -7,18 +7,18 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 	newrelic "github.com/newrelic/go-agent"
 	"github.com/opentracing/opentracing-go"
+	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"golang.org/x/sync/errgroup"
 	"sync"
 	"testing"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"time"
 )
 
@@ -102,6 +102,7 @@ func (m *ddTrial) Stop() error {
 
 type jaegerTrial struct {
 	onClose io.Closer
+	tracer opentracing.Tracer
 }
 
 func (m *jaegerTrial) Setup() error {
@@ -114,6 +115,7 @@ func (m *jaegerTrial) Setup() error {
 	if err != nil {
 		return err
 	}
+	m.tracer = openTracer
 	m.onClose = closer
 	opentracing.SetGlobalTracer(openTracer)
 	return nil
@@ -166,6 +168,7 @@ func emptyTestFunc() {
 
 type runBag struct {
 	nrApp newrelic.Application
+	jaegerTracer opentracing.Tracer
 }
 
 type goroutineBag struct {
@@ -195,7 +198,7 @@ type benchmarkTracesRun struct {
 
 func openjaegerRun(b *testing.B, run benchmarkTracesRun) {
 	ctx := context.Background()
-	span, _ := opentracing.StartSpanFromContext(ctx, "operation_name")
+	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, run.runBag.jaegerTracer, "operation_name")
 	run.toCall()
 	span.Finish()
 }
@@ -221,9 +224,10 @@ func newRelicRun(b *testing.B, run benchmarkTracesRun) {
 func BenchmarkTraces(b *testing.B) {
 	b.ReportAllocs()
 	nrT := nrTrial{}
+	jt := &jaegerTrial{}
 	ms := multiService {
 		services: []service{
-			&ddTrial{}, &jaegerTrial{}, &nrT, &xrayTrial{},
+			&ddTrial{}, jt, &nrT, &xrayTrial{},
 		},
 	}
 	require.NoError(b, ms.Setup())
@@ -285,6 +289,7 @@ func BenchmarkTraces(b *testing.B) {
 		b.Run(fmt.Sprintf("%s-%d", run.name, run.atOnce), func(b *testing.B) {
 			run := run
 			run.runBag.nrApp = nrT.app
+			run.runBag.jaegerTracer = jt.tracer
 			wg := sync.WaitGroup{}
 			for ao := 0;ao<run.atOnce;ao++ {
 				wg.Add(1)
