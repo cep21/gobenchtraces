@@ -13,34 +13,44 @@ fix:
 bench:
 	go test -v -benchmem -run=^$$ -bench=. ./...
 
-bench_out:
+bench_all:
 	echo "\`\`\`" > benchmark.md
 	go test -v -benchmem -run=^$$ -bench=. ./... >> benchmark.md
+	echo >> benchmark.md
 	echo "\`\`\`" >> benchmark.md
 
-bench_mem_xray:
-	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -memprofile=xray-mem.profile
+bench_xray:
+	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -memprofile=xray_mem.profile -cpuprofile=xray_cpu.profile -mutexprofile=xray_mutex.profile -blockprofile=xray_block.profile
+
 	echo "\`\`\`" > benchmark_xray_mem.md
-	echo "list xray" | go tool pprof -sample_index=alloc_objects gobenchtraces.test xray-mem.profile >> benchmark_xray_mem.md
+	echo "list xray" | go tool pprof -sample_index=alloc_objects gobenchtraces.test xray_mem.profile >> benchmark_xray_mem.md
 	echo >> benchmark_xray_mem.md
 	echo "\`\`\`" >> benchmark_xray_mem.md
+
+	echo "\`\`\`" > benchmark_xray_cpu.md
+	echo "list xray" | go tool pprof gobenchtraces.test xray_cpu.profile >> benchmark_xray_cpu.md
+	echo >> benchmark_xray_cpu.md
+	echo "\`\`\`" >> benchmark_xray_cpu.md
+
+	echo "\`\`\`" > benchmark_xray_block.md
+	echo "list xray" | go tool pprof gobenchtraces.test xray_block.profile >> benchmark_xray_block.md
+	echo >> benchmark_xray_block.md
+	echo "\`\`\`" >> benchmark_xray_block.md
+
+	echo "\`\`\`" > benchmark_xray_mutex.md
+	echo "list xray" | go tool pprof gobenchtraces.test xray_mutex.profile >> benchmark_xray_mutex.md
+	echo >> benchmark_xray_mutex.md
+	echo "\`\`\`" >> benchmark_xray_mutex.md
 
 profile_cpu:
 	go test -run=^$$ -bench=$(PROFILE_RUN) -benchtime=15s -cpuprofile=cpu.profile ./benchmarking
 	go tool pprof benchmarking.test cpu.profile
 	rm -f cpu.profile benchmarking.test
 
-bench_blocking_xray:
-	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -blockprofile=block_xray.profile
-	echo "\`\`\`" > benchmark_xray_block.md
-	echo "list xray" | go tool pprof gobenchtraces.test block_xray.profile >> benchmark_xray_block.md
-	echo >> benchmark_xray_block.md
-	echo "\`\`\`" >> benchmark_xray_block.md
-
 clean:
 	rm -f *.profile gobenchtraces.test
 
-generate: bench_out bench_mem_xray bench_blocking_xray clean
+generate: bench_all bench_xray clean
 
 # Lint the code
 lint:
