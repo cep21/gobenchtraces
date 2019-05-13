@@ -37,6 +37,11 @@ bench_blocking_xray:
 	echo >> benchmark_xray_block.md
 	echo "\`\`\`" >> benchmark_xray_block.md
 
+clean:
+	rm -f *.profile gobenchtraces.test
+
+generate: bench_out bench_mem_xray bench_blocking_xray clean
+
 # Lint the code
 lint:
 	golangci-lint run
