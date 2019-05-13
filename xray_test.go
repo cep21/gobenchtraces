@@ -89,7 +89,11 @@ func (m *ddTrial) Setup() error {
 func (m *ddTrial) Start() error {
 	m.server.Addr = ":8126"
 	m.server.Handler = m
-	return m.server.ListenAndServe()
+	err := m.server.ListenAndServe()
+	if err == nil || err.Error() == http.ErrServerClosed.Error() {
+		return nil
+	}
+	return err
 }
 
 func (m *ddTrial) ServeHTTP(rw http.ResponseWriter, _ *http.Request) {

@@ -14,7 +14,7 @@ bench:
 	go test -v -benchmem -run=^$$ -bench=. ./...
 
 bench_mem:
-	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -memprofile=mem.out
+	go test -benchmem -run=^$$ -bench="BenchmarkTraces/openjaeger-1000" -memprofile=mem.out
 	go tool pprof -sample_index=alloc_objects -list xray -call_tree -cum gobenchtraces.test mem.out > xray_mem.txt
 
 profile_cpu:
