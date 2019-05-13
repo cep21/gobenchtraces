@@ -18,20 +18,24 @@ bench_out:
 	go test -v -benchmem -run=^$$ -bench=. ./... >> benchmark.md
 	echo "\`\`\`" >> benchmark.md
 
-bench_mem:
-	go test -benchmem -run=^$$ -bench="BenchmarkTraces/openjaeger-1000" -memprofile=mem.out
-	go tool pprof -sample_index=alloc_objects -list xray -call_tree -cum gobenchtraces.test mem.out > xray_mem.txt
+bench_mem_xray:
+	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -memprofile=xray-mem.profile
+	echo "\`\`\`" > benchmark_xray_mem.md
+	echo "list xray" | go tool pprof -sample_index=alloc_objects gobenchtraces.test xray-mem.profile >> benchmark_xray_mem.md
+	echo >> benchmark_xray_mem.md
+	echo "\`\`\`" >> benchmark_xray_mem.md
 
 profile_cpu:
-	go test -run=^$$ -bench=$(PROFILE_RUN) -benchtime=15s -cpuprofile=cpu.out ./benchmarking
-	go tool pprof benchmarking.test cpu.out
-	rm -f cpu.out benchmarking.test
+	go test -run=^$$ -bench=$(PROFILE_RUN) -benchtime=15s -cpuprofile=cpu.profile ./benchmarking
+	go tool pprof benchmarking.test cpu.profile
+	rm -f cpu.profile benchmarking.test
 
-profile_blocking:
-	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -blockprofile=block_xray.out
-	go tool pprof -list xray -call_tree -cum -nodecount=30 gobenchtraces.test block_xray.out
-	rm -f block.out benchmarking.test
-
+bench_blocking_xray:
+	go test -benchmem -run=^$$ -bench="BenchmarkTraces/x-ray-1000" -blockprofile=block_xray.profile
+	echo "\`\`\`" > benchmark_xray_block.md
+	echo "list xray" | go tool pprof gobenchtraces.test block_xray.profile >> benchmark_xray_block.md
+	echo >> benchmark_xray_block.md
+	echo "\`\`\`" >> benchmark_xray_block.md
 
 # Lint the code
 lint:
