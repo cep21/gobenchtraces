@@ -14,7 +14,9 @@ bench:
 	go test -v -benchmem -run=^$$ -bench=. ./...
 
 bench_out:
-	go test -v -benchmem -run=^$$ -bench=. ./... > benchmark.md
+	echo "\`\`\`" > benchmark.md
+	go test -v -benchmem -run=^$$ -bench=. ./... >> benchmark.md
+	echo "\`\`\`" >> benchmark.md
 
 bench_mem:
 	go test -benchmem -run=^$$ -bench="BenchmarkTraces/openjaeger-1000" -memprofile=mem.out
